@@ -34,7 +34,7 @@ def processar_imagem(req: ImagemRequest):
 
         # 5. Binarização Adaptativa
         thresh = cv2.adaptiveThreshold(
-            blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, 8
+            blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 8
         )
 
         # 6. Recodifica e devolve
