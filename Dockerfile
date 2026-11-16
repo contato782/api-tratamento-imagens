@@ -1,13 +1,18 @@
-# Atualizamos para uma versão mais recente com repositórios ativos do Debian
 FROM python:3.11-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Adicionamos a permissão para atualizar repositórios antigos e removemos o modo silencioso
-RUN apt-get update --allow-releaseinfo-change && \
-    apt-get install -y --no-install-recommends tesseract-ocr libgl1-mesa-glx libglib2.0-0 && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Atualiza a lista de pacotes isoladamente
+RUN apt-get update
+
+# Instala o Tesseract OCR
+RUN apt-get install -y tesseract-ocr
+
+# Instala as dependências de vídeo corretas para o OpenCV no Debian moderno
+RUN apt-get install -y libgl1 libglib2.0-0
+
+# Limpa o cache
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY . /app
