@@ -1,18 +1,13 @@
 FROM python:3.11-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
+# Trava o Tesseract para usar apenas 1 núcleo de processamento (Salva o Render gratuito)
+ENV OMP_THREAD_LIMIT=1
 
-# Atualiza a lista de pacotes isoladamente
-RUN apt-get update
-
-# Instala o Tesseract OCR
-RUN apt-get install -y tesseract-ocr
-
-# Instala as dependências de vídeo corretas para o OpenCV no Debian moderno
-RUN apt-get install -y libgl1 libglib2.0-0
-
-# Limpa o cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y tesseract-ocr && \
+    apt-get install -y libgl1 libglib2.0-0 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY . /app
