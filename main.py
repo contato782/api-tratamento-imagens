@@ -25,20 +25,45 @@ def processar_imagem(req: ImagemRequest):
         if img is None:
             raise ValueError("Imagem chegou corrompida.")
 
-        # Tratamento de Imagem Otimizado para Tesseract
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # ==========================================
+        # PRÉ-PROCESSAMENTO AVANÇADO PARA TESSERACT
+        # ==========================================
         
-        # O Tesseract exige contraste extremo (Preto no Branco). Usamos a Binarização de Otsu.
-        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # 1. Ampliação (CRUCIAL): Multiplica o tamanho da imagem por 3.
+        # Imagens cortadas no n8n são muito pequenas para o motor OCR padrão.
+        img_ampliada = cv2.resize(img, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
 
-        # Configuração do Tesseract: PSM 7 (linha única de texto) e whitelist (apenas números)
-        custom_config = r'--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789'
-        texto_extraido = pytesseract.image_to_string(thresh, config=custom_config)
+        # 2. Tons de Cinza
+        gray = cv2.cvtColor(img_ampliada, cv2.COLOR_BGR2GRAY)
         
-        # Filtra a resposta para garantir que apenas os números passem
+        # 3. Contraste Seguro (CLAHE) - clareia sombras sem estourar o brilho
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        contrast = clahe.apply(gray)
+        
+        # 4. Desfoque sutil (Remove o "serrilhado" dos números gerado pela ampliação)
+        blur = cv2.medianBlur(contrast, 3)
+
+        # 5. Binarização extrema (Otsu - Preto e Branco absoluto)
+        _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        # ==========================================
+        # EXTRAÇÃO (DUPLA TENTATIVA)
+        # ==========================================
+        
+        # Configuração: PSM 6 lê blocos de texto (tolera roldanas desalinhadas)
+        custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789'
+        
+        # Tentativa A: Lê da imagem binarizada
+        texto_extraido = pytesseract.image_to_string(thresh, config=custom_config)
         numeros_finais = re.sub(r'\D', '', texto_extraido)
 
-        # Se não ler nada, devolve vazio para o n8n bloquear a inserção
+        # Tentativa B (Failsafe): Se a binarização destruiu os traços e apagou o número,
+        # tentamos ler diretamente da imagem cinza com alto contraste.
+        if not numeros_finais:
+            texto_extraido = pytesseract.image_to_string(contrast, config=custom_config)
+            numeros_finais = re.sub(r'\D', '', texto_extraido)
+
+        # Retorna o resultado final
         return {"leitura_final": numeros_finais if numeros_finais else ""}
 
     except Exception as e:
